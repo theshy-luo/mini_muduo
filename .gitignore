@@ -1,0 +1,11 @@
+# 忽略编译生成的目录
+build/
+emb_build/
+bin/
+lib/
+.vscode/
+.cache/
+
+# 忽略文件
+.DS_Store
+test_clinet.py
