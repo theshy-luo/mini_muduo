@@ -4,6 +4,7 @@
 #include "mini_muduo/Poller.h"
 #include "mini_muduo/TimerId.h"
 #include "mini_muduo/base/Timestamp.h"
+#include "mini_muduo/TimingWheel.h"
 
 #include <iostream> // 目前没有日志库，遇到严重错误先报错打印一下
 #include <mutex>
@@ -42,6 +43,7 @@ namespace mini_muduo
       , wakeup_channel_(new Channel(this, wakeup_fd_))
       , poller_(new EpollPoller(this)) 
       , timer_queue_(new TimerQueue(this))
+      , timing_wheel_(nullptr)
   {
     // 如果发现这个线程里已经有人创建过 EventLoop 了，这是致命的，立刻报错
     if (t_loopInThisThread) 
@@ -81,6 +83,19 @@ namespace mini_muduo
   void EventLoop::CancelTimer(TimerId timer_id)
   {
     timer_queue_->CancelTimer(timer_id);
+  }
+
+  void EventLoop::EnableIdleTimeout(int seconds)
+  {
+    timing_wheel_.reset(new TimingWheel(this, seconds));
+  }
+
+  void EventLoop::Feed(const TcpConnectionPtr& conn)
+  {
+    if (timing_wheel_) 
+    {
+      timing_wheel_->Feed(conn);
+    }
   }
 
   void EventLoop::Loop() 

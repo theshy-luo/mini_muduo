@@ -216,7 +216,7 @@ namespace mini_muduo
         send(data.c_str(), data.size());
     }
 
-    void TcpConnection::shutdown()
+    void TcpConnection::ShutDown()
     {
         if (state_ == kConnected) 
         {

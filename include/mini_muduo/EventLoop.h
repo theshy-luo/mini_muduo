@@ -15,6 +15,7 @@ namespace mini_muduo
 {
   class Poller;
   class TimerQueue;
+  class TimingWheel;
   class EventLoop : public Noncopyable 
   {
     public:
@@ -28,6 +29,9 @@ namespace mini_muduo
       TimerId RunAfter(double delay, TimerCallback cb);
       TimerId RunEvery(double interval, TimerCallback cb);
       void CancelTimer(TimerId timer_id);
+
+      void EnableIdleTimeout(int seconds);
+      void Feed(const TcpConnectionPtr& conn);
 
       void Loop();
       void Quit();
@@ -74,6 +78,8 @@ namespace mini_muduo
       std::unique_ptr<Poller> poller_;
       // 定时器
       std::unique_ptr<TimerQueue> timer_queue_;
+      // 时间轮检查超时
+      std::unique_ptr<TimingWheel> timing_wheel_;
       // epoll 返回的活跃通道列表
       std::vector<Channel *> activeChannels_;
       // 待执行的任务队列

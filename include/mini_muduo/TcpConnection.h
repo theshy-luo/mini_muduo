@@ -8,6 +8,7 @@
 #include "mini_muduo/base/noncopyable.h"
 #include <atomic>
 #include <cstddef>
+#include <memory>
 #include <string>
 
 /**
@@ -34,7 +35,7 @@ public:
   void send(Buffer *buf);
 
   // 关闭连接（温和的关闭，会等数据发完）
-  void shutdown();
+  void ShutDown();
 
   // 设置回调
   void SetConnectionCallback(const ConnectionCallback &cb) { connection_callback_ = cb; }
@@ -47,6 +48,9 @@ public:
 
   // 核心入口：当连接要被彻底销毁时调用
   void ConnectDestroyed();
+
+  void SetContext(std::shared_ptr<void> context){context_ = context;}
+  std::shared_ptr<void> GetContext() const { return context_; }
 
 private:
   enum StateE { kDisconnected, kConnecting, kConnected, kDisconnecting };
@@ -80,5 +84,7 @@ private:
   Buffer input_buffer_;
   // 发送缓冲区
   Buffer output_buffer_;
+
+  std::shared_ptr<void> context_;
 };
 } // namespace mini_muduo
