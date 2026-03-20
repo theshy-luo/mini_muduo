@@ -8,4 +8,3 @@ lib/
 
 # 忽略文件
 .DS_Store
-test_clinet.py
