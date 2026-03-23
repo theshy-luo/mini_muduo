@@ -15,7 +15,14 @@ namespace mini_muduo
             explicit Timestamp(int64_t microSecondsSinceEpoch)
                 : micro_seconds_since_epoch_(microSecondsSinceEpoch) {}
             int64_t micro_seconds_since_epoch() const { return micro_seconds_since_epoch_; }
-            int64_t milli_seconds_since_epoch() const { return micro_seconds_since_epoch_ / 1000; }
+            int64_t milli_seconds_since_epoch() const 
+            {
+                return static_cast<int64_t>(micro_seconds_since_epoch_ / 1000); 
+            }
+            int64_t second_since_epoch() const 
+            {
+                return static_cast<int64_t>(micro_seconds_since_epoch_ / kMicroSecondsPerSecond); 
+            }
 
             static Timestamp Invalid() { return Timestamp(); }
 

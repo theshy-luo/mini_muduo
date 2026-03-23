@@ -12,8 +12,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options(-Wall -Wextra -g)
 
 # 开启 ASan
-add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-link_libraries(asan)
+option(ENABLE_ASAN "Enable AddressSanitizer" ON)
+if(ENABLE_ASAN)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    link_libraries(asan)
+endif()
 
 enable_testing()
 # 暂时强制只加入当前工程的test

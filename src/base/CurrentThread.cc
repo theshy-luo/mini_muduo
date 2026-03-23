@@ -4,7 +4,9 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <cxxabi.h>
+#ifdef __GLIBC__
 #include <execinfo.h>
+#endif
 #include <stdlib.h>
 
 namespace mini_muduo 
@@ -37,6 +39,7 @@ namespace mini_muduo
         std::string stackTrace(bool demangle)
         {
             std::string stack;
+#ifdef __GLIBC__
             const int max_frames = 200;
             void* frame[max_frames];
             int nptrs = ::backtrace(frame, max_frames);
@@ -85,6 +88,11 @@ namespace mini_muduo
                 free(demangled);
                 free(strings);
             }
+#else
+            (void)demangle;
+            // 非 glibc 环境（如 musl libc / OpenWrt / Alpine 等），不支持 backtrace
+            stack = "stackTrace not supported on this platform.\n";
+#endif
             return stack;
         }
     }
