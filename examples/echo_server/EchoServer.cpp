@@ -2,29 +2,27 @@
 #include "mini_muduo/EventLoop.h"
 #include "mini_muduo/InetAddress.h"
 #include "mini_muduo/TcpServer.h"
-
-#include <iostream>
-#include <string>
+#include "mini_muduo/base/Logger.h"
 
 using namespace mini_muduo;
 
 static void OnConnectionCallback(const mini_muduo::TcpConnectionPtr& conn)
 {
-    if (conn->Connected()) 
+    if (conn->Connected())
     {
-        std::cout << "Connected: " << conn->name() << "\n";
+        LOG_DEBUG << "Connected: " << conn->name() << "\n";
     }
-    else 
+    else
     {
-        std::cout << "Disconnected: " << conn->name() << "\n";
+        LOG_DEBUG << "Disconnected: " << conn->name() << "\n";
     }
 }
 
-static void OnMessage(const mini_muduo::TcpConnectionPtr& conn, 
-    mini_muduo::Buffer* buf, mini_muduo::Timestamp time)
+static void OnMessage(const mini_muduo::TcpConnectionPtr &conn,
+    mini_muduo::Buffer *buf, mini_muduo::Timestamp time)
 {
-    std::cout << "OnMessage Echo time:" << time.milli_seconds_since_epoch() << " tid:" 
-        << CurrentThread::tid() << std::endl;
+    LOG_DEBUG << "OnMessage Echo time:" << time.milli_seconds_since_epoch()
+                << " tid:" << CurrentThread::tid();
     std::string msg = buf->RetrieveAllAsString();
     conn->send(msg); // 核心：Echo 回去
 }
@@ -34,7 +32,7 @@ int main()
     mini_muduo::EventLoop loop;
     mini_muduo::InetAddress addr(20000);
     mini_muduo::TcpServer server(&loop, addr, "lqh EchoServer");
-    
+
     server.SetConnectionCallback(OnConnectionCallback);
     server.SetMessageCallback(OnMessage);
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mini_muduo/base/Exception.h"
 #include "mini_muduo/base/LogStream.h"
 #include "mini_muduo/base/Timestamp.h"
 
@@ -55,7 +56,7 @@ namespace mini_muduo
             Logger(SourceFile file, int line, LogLevel level);
             Logger(SourceFile file, int line, LogLevel level, const char* func);
 
-            ~Logger();// 析构时输出
+            ~Logger() noexcept(false);// 析构时输出，FATAL 输出后抛异常
 
             LogStream& stream() { return impl_.stream; }
 

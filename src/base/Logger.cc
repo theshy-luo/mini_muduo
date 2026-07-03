@@ -126,17 +126,17 @@ namespace mini_muduo
         impl_.stream << func << ' ';
     }
 
-    Logger::~Logger()
+    Logger::~Logger() noexcept(false)
     {
         impl_.Finish();
 
         const LogStream::Buffer& buf(stream().buffer());
         fwrite(buf.data(), buf.length(), 1, stdout);
 
-        if (impl_.level == FATAL) 
+        if (impl_.level == FATAL)
         {
             fflush(stdout);
-            abort();
+            throw Exception(std::string(buf.data(), buf.length()));
         }
     }
 } // namespace mini_muduo

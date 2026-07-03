@@ -21,9 +21,15 @@ int main()
     // 测试结束
     LOG_INFO << "Hello mini_muduo Logger! Everything works perfectly!";
 
-    // 测试宏里附带文件名和行号的能力
-    // 注意：不要直接跑 LOG_FATAL，否则程序会立即 abort() 退出
-    LOG_FATAL << "This will crash the program!";
+    // LOG_FATAL 抛出异常，由调用方决定如何处理。
+    try
+    {
+        LOG_FATAL << "This is a fatal error!";
+    }
+    catch (const mini_muduo::Exception& ex)
+    {
+        LOG_INFO << "Caught expected fatal exception: " << ex.what();
+    }
 
     return 0;
 }
