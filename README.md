@@ -7,6 +7,8 @@
 - **现代 C++ 风格**：基于 C++11，使用 RAII、`shared_ptr` 和 `unique_ptr` 管理核心资源。
 - **Reactor 模式**：采用主流的 `Main-Sub Reactor` 架构（多 Reactor + 多 IO 线程）。
 - **非阻塞 IO + Epoll**：底层使用 `epoll` (LT 模式) 进行多路复用。
+- **批量 UDP 接收器**：基于 Linux `recvmmsg` 实现批量收包，配合 `PacketBufferPool` 复用接收缓冲区。
+- **用户态零额外拷贝传递**：UDP payload 写入 `PacketBuffer` 后，通过只读 `UdpDatagram` 句柄在业务层共享，避免 callback 外缓存时再次复制 payload。
 - **定时器队列**：基于 `timerfd` 与 `std::set` 实现的高效定时任务调度。
 - **连接空闲检测**：基于环形时间轮自动关闭超时连接。
 - **优雅关闭 (Graceful Shutdown)**：支持对已标记关闭连接的输出缓冲区排空，确保数据不丢失。
@@ -51,12 +53,44 @@ cmake --build build -j4
 - `include/mini_muduo`：库核心头文件
     - `TcpServer`: 核心服务类
     - `EventLoop`: 事件循环与任务队列
+    - `UdpSocket`: 非阻塞 UDP socket 封装
+    - `UdpReceiver`: 基于 `recvmmsg` 的批量 UDP 接收器
+    - `UdpDatagram`: 只读 UDP 数据报句柄
+    - `PacketBuffer` / `PacketBufferPool`: UDP payload 缓冲区与缓冲池
     - `TimingWheel`: 连接空闲超时管理
     - `TimerQueue`: 定时任务管理
-- `include/mini_muduo/base`：线程、时间戳、异常和日志等基础组件
+- `include/mini_muduo/base`：线程、时间戳、异常、日志和 `UniqueFd` 等基础组件
 - `src`：实现代码
 - `examples`：Echo Server 示例
-- `tests`：日志与定时器测试
+- `tests`：日志、定时器、UDP socket、UDP receiver 和缓冲池测试
+
+## 📡 UDP Receiver
+
+当前 UDP 接收器是 Linux 专用实现，核心目标是先跑通高性能 UDP 接收的底层模型：
+
+```text
+UDP socket
+  -> recvmmsg 批量接收
+  -> PacketBufferPool 获取可写缓冲区
+  -> UdpDatagram 只读共享句柄
+  -> message callback 按值接收并可长期保存
+```
+
+主要组件：
+
+- `UniqueFd`：RAII 管理 fd 生命周期，避免手动 close 遗漏。
+- `UdpSocket`：创建 `SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC` UDP socket，并封装 bind / socket option。
+- `PacketBuffer`：保存单个 UDP payload，内部使用 `std::uint8_t[]` 表达二进制数据。
+- `PacketBufferPool`：预分配并复用 `PacketBuffer`，降低热路径频繁分配开销。
+- `UdpDatagram`：业务侧只读的数据报句柄，内部持有共享 `PacketBuffer`，callback 外保存时不会复制 payload。
+- `UdpReceiver`：通过 `recvmmsg` 一次系统调用批量接收多个 UDP datagram，并通过 `max_packets_per_read` 限制单次读事件处理量，避免长时间占用 EventLoop。
+
+注意：
+
+- 这里的“零额外拷贝”指用户态业务传递层面：payload 从 socket 读取到 `PacketBuffer` 后，业务缓存 `UdpDatagram` 不再复制 payload。
+- 当前不是内核态到用户态的真正 zero-copy，`recvmmsg` 仍会把数据从内核 socket receive queue 拷贝到用户态 buffer。
+- UDP 保留 datagram 边界。如果接收 buffer 小于 datagram 原始长度，数据会被截断，剩余部分会被内核丢弃。业务应检查 `UdpDatagram::truncated()`。
+- 推荐 sender 在应用层控制单个 UDP payload 大小，例如按 MTU 约束在 1200 字节左右；大消息应在应用层分片和重组。
 
 ## 📝 日志系统
 
@@ -92,6 +126,23 @@ catch (const mini_muduo::Exception& ex)
 ```bash
 ctest --test-dir build --output-on-failure
 ```
+
+也可以单独运行关键测试：
+
+```bash
+./build/tests/test_unique_fd
+./build/tests/test_udp_socket
+./build/tests/test_packet_buffer_pool
+./build/tests/test_udp_receiver
+```
+
+UDP receiver 测试覆盖：
+
+- 普通 UDP datagram 接收；
+- callback 外保存 `UdpDatagram` 后仍可读取 payload；
+- 接收 buffer 小于 datagram 时的截断标记和原始长度；
+- 0 字节 UDP datagram；
+- 多个 datagram 批量接收路径。
 
 运行并发 Echo 测试前，先启动监听 `20000` 端口的服务器：
 
